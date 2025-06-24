@@ -110,7 +110,18 @@
         import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- CONFIG & STATE ---
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        // FIX: Provide a default config for when running on GitHub Pages
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : {
+                apiKey: "YOUR_API_KEY", // These can be placeholders
+                authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+                projectId: "YOUR_PROJECT_ID", // This is the crucial one
+                storageBucket: "YOUR_PROJECT_ID.appspot.com",
+                messagingSenderId: "YOUR_SENDER_ID",
+                appId: "YOUR_APP_ID"
+              };
+
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-job-hub';
         
         let db, auth;
@@ -146,6 +157,14 @@
         // --- INITIALIZATION ---
         async function main() {
             try {
+                // If projectId is a placeholder, it means we are outside the secure environment.
+                // We must use a real, public projectId for the app to work.
+                if (firebaseConfig.projectId === "YOUR_PROJECT_ID") {
+                    firebaseConfig.projectId = "showcase-app-runner-prod";
+                    firebaseConfig.authDomain = "showcase-app-runner-prod.firebaseapp.com";
+                    firebaseConfig.storageBucket = "showcase-app-runner-prod.appspot.com";
+                }
+
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
@@ -162,7 +181,7 @@
                 
             } catch (error) {
                 console.error("Firebase Init or Auth Error:", error);
-                loadingOverlay.innerHTML = 'Error loading application. Please try again.';
+                loadingOverlay.innerHTML = `Error: ${error.message}. Please ensure you are connected to the internet.`;
             }
         }
         main();
