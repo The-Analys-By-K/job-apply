@@ -109,19 +109,23 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- CONFIG & STATE ---
-        // Using your personal Firebase configuration. No changes needed.
         const firebaseConfig = {
-          apiKey: "AIzaSyBf6dGCQ5Woko3RrT9gYD7plzJX2hzqUWA",
-          authDomain: "my-job-serach-hub.firebaseapp.com",
-          projectId: "my-job-serach-hub",
-          storageBucket: "my-job-serach-hub.firebasestorage.app",
-          messagingSenderId: "132753658811",
-          appId: "1:132753658811:web:84630bc323e1a33f0c6a9e",
-          measurementId: "G-930FG6YHMD"
+            apiKey: "AIzaSyBf6dGCQ5Woko3RrT9gYD7plzJX2hzqUWA",
+            authDomain: "my-job-serach-hub.firebaseapp.com",
+            projectId: "my-job-serach-hub",
+            storageBucket: "my-job-serach-hub.appspot.com",
+            messagingSenderId: "132753658811",
+            appId: "1:132753658811:web:84630bc323e1a33f0c6a9e",
+            measurementId: "G-930FG6YHMD"
+        };
+        
+        const fixedUser = {
+            email: "user@gmail.com",
+            password: "123456"
         };
         
         let db, auth, userId;
@@ -162,18 +166,20 @@
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                const userCredential = await signInAnonymously(auth);
-                userId = userCredential.user.uid;
-
-                if (userId) {
+                loadingText.textContent = "Authenticating...";
+                const userCredential = await signInWithEmailAndPassword(auth, fixedUser.email, fixedUser.password);
+                
+                if (userCredential.user) {
+                    userId = userCredential.user.uid;
+                    loadingText.textContent = "Fetching your data...";
                     attachFirestoreListeners();
                 } else {
-                    throw new Error("Could not authenticate user anonymously.");
+                    throw new Error("Authentication failed. Please check your Firebase user setup.");
                 }
                 
             } catch (error) {
                 console.error("Firebase Init or Auth Error:", error);
-                loadingText.textContent = `Error: ${error.message}.`;
+                loadingText.textContent = `Error: ${error.message}. Please check credentials and Firebase setup.`;
             }
         }
         main();
