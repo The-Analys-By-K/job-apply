@@ -40,7 +40,10 @@
 
         <!-- Loading State -->
         <div id="loading-overlay" class="fixed inset-0 bg-slate-100 bg-opacity-75 flex items-center justify-center z-50">
-            <div class="loading-spinner animate-spin rounded-full h-16 w-16 border-4 border-slate-300"></div>
+            <div class="text-center">
+                <div class="loading-spinner animate-spin rounded-full h-16 w-16 border-4 border-slate-300 mx-auto"></div>
+                <p id="loading-text" class="mt-4 text-slate-600 font-semibold">Connecting to database...</p>
+            </div>
         </div>
 
         <!-- Main Content -->
@@ -110,17 +113,18 @@
         import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- CONFIG & STATE ---
-        // FIX: Provide a default config for when running on GitHub Pages
+        const FALLBACK_CONFIG = {
+            projectId: "showcase-app-runner-prod",
+            authDomain: "showcase-app-runner-prod.firebaseapp.com",
+            storageBucket: "showcase-app-runner-prod.appspot.com",
+            apiKey: "AIzaSyC28g_pA-A4ixk1mZ2a5vA1wVzC2a7f5qY", 
+            messagingSenderId: "1035549906666",
+            appId: "1:1035549906666:web:2f0b71b782b54245b73673"
+        };
+        
         const firebaseConfig = typeof __firebase_config !== 'undefined' 
             ? JSON.parse(__firebase_config) 
-            : {
-                apiKey: "YOUR_API_KEY", // These can be placeholders
-                authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-                projectId: "YOUR_PROJECT_ID", // This is the crucial one
-                storageBucket: "YOUR_PROJECT_ID.appspot.com",
-                messagingSenderId: "YOUR_SENDER_ID",
-                appId: "YOUR_APP_ID"
-              };
+            : FALLBACK_CONFIG;
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-job-hub';
         
@@ -150,6 +154,7 @@
 
         // --- DOM ELEMENTS ---
         const loadingOverlay = document.getElementById('loading-overlay');
+        const loadingText = document.getElementById('loading-text');
         const navMarket = document.getElementById('navMarket');
         const navTracker = document.getElementById('navTracker');
         const analyzeBtn = document.getElementById('analyzeBtn');
@@ -157,31 +162,21 @@
         // --- INITIALIZATION ---
         async function main() {
             try {
-                // If projectId is a placeholder, it means we are outside the secure environment.
-                // We must use a real, public projectId for the app to work.
-                if (firebaseConfig.projectId === "YOUR_PROJECT_ID") {
-                    firebaseConfig.projectId = "showcase-app-runner-prod";
-                    firebaseConfig.authDomain = "showcase-app-runner-prod.firebaseapp.com";
-                    firebaseConfig.storageBucket = "showcase-app-runner-prod.appspot.com";
-                }
-
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // Authenticate to get permissions before attaching listeners
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
                     await signInAnonymously(auth);
                 }
                 
-                // Now that we are authenticated, attach the listeners
                 attachFirestoreListeners();
                 
             } catch (error) {
                 console.error("Firebase Init or Auth Error:", error);
-                loadingOverlay.innerHTML = `Error: ${error.message}. Please ensure you are connected to the internet.`;
+                loadingText.textContent = `Error: ${error.message}.`;
             }
         }
         main();
@@ -213,18 +208,16 @@
 
         // --- FIRESTORE & DATA ---
         function attachFirestoreListeners() {
-            // Use the public data path for persistence
             const marketJobsRef = collection(db, "artifacts", appId, "public", "data", "market_research_jobs");
             marketJobsUnsubscribe = onSnapshot(marketJobsRef, (snapshot) => {
                 state.marketJobs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderMarketView();
-                loadingOverlay.style.display = 'none'; // Hide loading after first data load
+                loadingOverlay.style.display = 'none'; 
             }, (error) => {
                 console.error("Market Research listener error:", error);
-                loadingOverlay.innerHTML = 'Error loading data. Check console for details.';
+                loadingText.textContent = 'Error loading data. Check console for details.';
             });
 
-            // Use the public data path for persistence
             const trackedJobsRef = collection(db, "artifacts", appId, "public", "data", "tracked_applications");
             trackedJobsUnsubscribe = onSnapshot(trackedJobsRef, (snapshot) => {
                 state.trackedJobs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -284,7 +277,6 @@
                 tbody.innerHTML += row;
             });
             
-            // Attach listeners after rendering
             document.querySelectorAll('.delete-market-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const row = e.target.closest('tr');
