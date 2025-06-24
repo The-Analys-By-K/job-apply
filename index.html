@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Analyst Job Search Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; } /* slate-100 */
+        .kanban-column { scroll-snap-align: start; }
+        .kanban-card { transition: box-shadow 0.2s ease-in-out; }
+        .kanban-card:hover { box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+        .skill-tag { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; margin: 0.15rem; text-transform: capitalize; }
+        .hard-skill { background-color: #e0f2fe; color: #0c4a6e; } /* sky-100, sky-900 */
+        .soft-skill { background-color: #ffedd5; color: #9a3412; } /* orange-100, orange-900 */
+        .modal { transition: opacity 0.25s ease; }
+        .loading-spinner { border-top-color: #0284c7; } /* sky-600 */
+        .status-pill { padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .status-wishlist { background-color: #e2e8f0; color: #475569; } /* slate-200, slate-600 */
+        .status-applied { background-color: #bae6fd; color: #0369a1; } /* sky-200, sky-800 */
+        .status-interviewing { background-color: #fed7aa; color: #c2410c; } /* orange-200, orange-700 */
+        .status-offer { background-color: #bbf7d0; color: #166534; } /* green-200, green-800 */
+        .status-rejected { background-color: #fecaca; color: #991b1b; } /* red-200, red-900 */
+    </style>
+</head>
+<body class="text-slate-800">
+    <!-- App Container -->
+    <div id="app" class="min-h-screen">
+        <!-- Header & Navigation -->
+        <header class="bg-white shadow-md sticky top-0 z-20">
+            <nav class="container mx-auto px-4 md:px-8 py-4 flex justify-between items-center">
+                <h1 class="text-xl md:text-2xl font-bold text-slate-900">Job Search Hub</h1>
+                <div class="flex space-x-2 rounded-lg bg-slate-200 p-1">
+                    <button id="navMarket" class="nav-btn active-nav-btn px-4 py-1.5 text-sm font-semibold rounded-md transition-colors">Market Research</button>
+                    <button id="navTracker" class="nav-btn px-4 py-1.5 text-sm font-semibold rounded-md transition-colors">Application Tracker</button>
+                </div>
+            </nav>
+        </header>
+
+        <!-- Loading State -->
+        <div id="loading-overlay" class="fixed inset-0 bg-slate-100 bg-opacity-75 flex items-center justify-center z-50">
+            <div class="loading-spinner animate-spin rounded-full h-16 w-16 border-4 border-slate-300"></div>
+        </div>
+
+        <!-- Main Content -->
+        <main id="main-content" class="container mx-auto p-4 md:p-8">
+            <!-- Market Research View -->
+            <div id="market-research-view" class="view">
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                    <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-lg h-fit">
+                        <h2 class="text-2xl font-bold mb-4">Add a Job Description</h2>
+                         <div class="space-y-4">
+                            <input type="text" id="companyName" class="w-full rounded-md border-slate-300 h-10 px-3" placeholder="Company Name">
+                            <input type="text" id="jobTitle" class="w-full rounded-md border-slate-300 h-10 px-3" placeholder="Job Title">
+                            <textarea id="jobDescription" rows="10" class="w-full rounded-md border-slate-300 p-3" placeholder="Paste the full job description here..."></textarea>
+                            <button id="analyzeBtn" class="w-full bg-sky-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-sky-700 transition-colors shadow-md">Analyze & Save</button>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-3 space-y-8">
+                        <div class="bg-white p-6 rounded-2xl shadow-lg">
+                            <h2 class="text-2xl font-bold mb-4">Market Summary</h2>
+                            <div id="summarySection" class="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
+                                <div class="bg-slate-100 p-4 rounded-lg"><p class="text-sm text-slate-500">Jobs Analyzed</p><p id="totalJobs" class="text-3xl font-bold text-sky-600">0</p></div>
+                                <div class="bg-slate-100 p-4 rounded-lg"><p class="text-sm text-slate-500">Top Hard Skill</p><p id="topHardSkill" class="text-2xl md:text-3xl font-bold text-sky-600">-</p></div>
+                                <div class="bg-slate-100 p-4 rounded-lg"><p class="text-sm text-slate-500">Top Soft Skill</p><p id="topSoftSkill" class="text-2xl md:text-3xl font-bold text-orange-600">-</p></div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl shadow-lg"><h2 class="text-2xl font-bold p-6">Analyzed Jobs</h2><div class="overflow-x-auto"><table class="min-w-full"><thead class="bg-slate-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Company</th><th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Hard Skills</th><th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Soft Skills</th><th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Actions</th></tr></thead><tbody id="resultsTableBody" class="divide-y divide-slate-200"></tbody></table></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Application Tracker View -->
+            <div id="application-tracker-view" class="view hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-3xl font-bold text-slate-900">My Application Pipeline</h2>
+                    <button id="addApplicationBtn" class="bg-sky-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-sky-700 transition-colors shadow-md">Add Application</button>
+                </div>
+                <div class="w-full overflow-x-auto pb-4">
+                    <div id="kanban-board" class="grid grid-flow-col auto-cols-min md:auto-cols-fr gap-6">
+                         <!-- Columns will be injected by JS -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add/Edit Application Modal -->
+    <div id="applicationModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-30 hidden opacity-0">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+            <h2 id="modalTitle" class="text-2xl font-bold mb-6">Add New Application</h2>
+            <div class="space-y-4">
+                <input type="hidden" id="modalJobId">
+                <input type="text" id="modalCompanyName" class="w-full rounded-md border-slate-300 h-10 px-3" placeholder="Company Name">
+                <input type="text" id="modalJobTitle" class="w-full rounded-md border-slate-300 h-10 px-3" placeholder="Job Title">
+                <input type="text" id="modalJobLink" class="w-full rounded-md border-slate-300 h-10 px-3" placeholder="Link to Job Posting">
+                <textarea id="modalNotes" rows="4" class="w-full rounded-md border-slate-300 p-3" placeholder="Notes (e.g., contact person, next steps)"></textarea>
+                <div class="flex justify-end space-x-4 pt-4">
+                    <button id="modalCancelBtn" class="bg-slate-200 text-slate-800 font-bold py-2 px-5 rounded-lg hover:bg-slate-300">Cancel</button>
+                    <button id="modalSaveBtn" class="bg-sky-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-sky-700">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- CONFIG & STATE ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-job-hub';
+        
+        let db, auth;
+        let marketJobsUnsubscribe = null;
+        let trackedJobsUnsubscribe = null;
+
+        const state = {
+            currentView: 'market-research-view',
+            marketJobs: [],
+            trackedJobs: [],
+        };
+
+        const SKILL_KEYWORDS = {
+            hard_skills: {'SQL':['sql'],'Python':['python','pandas','numpy','scikit-learn'],'R':['r'],'Tableau':['tableau'],'Power BI':['power bi'],'Excel':['excel','spreadsheets'],'Statistics':['statistics','statistical'],'A/B Testing':['a/b test'],'Machine Learning':['machine learning','ml'],'AWS':['aws','redshift'],'GCP':['gcp','bigquery'],'Azure':['azure']},
+            soft_skills: {'Communication':['communication','storytelling'],'Stakeholder Management':['stakeholder'],'Problem Solving':['problem-solving'],'Collaboration':['collaboration','teamwork'],'Business Acumen':['business acumen']}
+        };
+
+        const STATUS_MAP = {
+            wishlist: "Wishlist",
+            applied: "Applied",
+            interviewing: "Interviewing",
+            offer: "Offer",
+            rejected: "Rejected"
+        };
+        const STATUS_ORDER = ['wishlist', 'applied', 'interviewing', 'offer', 'rejected'];
+
+        // --- DOM ELEMENTS ---
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const navMarket = document.getElementById('navMarket');
+        const navTracker = document.getElementById('navTracker');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+
+        // --- INITIALIZATION ---
+        async function main() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                // Authenticate to get permissions before attaching listeners
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                
+                // Now that we are authenticated, attach the listeners
+                attachFirestoreListeners();
+                
+            } catch (error) {
+                console.error("Firebase Init or Auth Error:", error);
+                loadingOverlay.innerHTML = 'Error loading application. Please try again.';
+            }
+        }
+        main();
+
+        // --- EVENT LISTENERS ---
+        navMarket.addEventListener('click', () => switchView('market-research-view'));
+        navTracker.addEventListener('click', () => switchView('application-tracker-view'));
+        analyzeBtn.addEventListener('click', handleAnalyzeJob);
+        
+        // --- VIEW MANAGEMENT ---
+        function switchView(viewId) {
+            state.currentView = viewId;
+            document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+            document.getElementById(viewId).classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active-nav-btn'));
+            if (viewId === 'market-research-view') {
+                 navMarket.classList.add('active-nav-btn');
+            } else {
+                 navTracker.classList.add('active-nav-btn');
+            }
+            document.querySelector('.active-nav-btn').style.backgroundColor = 'white';
+            document.querySelector('.active-nav-btn').style.color = '#0f172a';
+            document.querySelectorAll('.nav-btn:not(.active-nav-btn)').forEach(b => {
+                b.style.backgroundColor = '';
+                b.style.color = '';
+            });
+        }
+
+        // --- FIRESTORE & DATA ---
+        function attachFirestoreListeners() {
+            // Use the public data path for persistence
+            const marketJobsRef = collection(db, "artifacts", appId, "public", "data", "market_research_jobs");
+            marketJobsUnsubscribe = onSnapshot(marketJobsRef, (snapshot) => {
+                state.marketJobs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderMarketView();
+                loadingOverlay.style.display = 'none'; // Hide loading after first data load
+            }, (error) => {
+                console.error("Market Research listener error:", error);
+                loadingOverlay.innerHTML = 'Error loading data. Check console for details.';
+            });
+
+            // Use the public data path for persistence
+            const trackedJobsRef = collection(db, "artifacts", appId, "public", "data", "tracked_applications");
+            trackedJobsUnsubscribe = onSnapshot(trackedJobsRef, (snapshot) => {
+                state.trackedJobs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderTrackerView();
+            }, (error) => {
+                console.error("Application Tracker listener error:", error);
+            });
+        }
+        
+        async function handleAnalyzeJob() {
+            const companyName = document.getElementById('companyName').value.trim();
+            const jobTitle = document.getElementById('jobTitle').value.trim();
+            const jobDescription = document.getElementById('jobDescription').value.toLowerCase();
+            if (!companyName || !jobDescription) return alert('Company name and description are required.');
+
+            const foundHardSkills = [...new Set(Object.entries(SKILL_KEYWORDS.hard_skills).filter(([_, keywords]) => keywords.some(k => jobDescription.includes(k))).map(([skill, _]) => skill))];
+            const foundSoftSkills = [...new Set(Object.entries(SKILL_KEYWORDS.soft_skills).filter(([_, keywords]) => keywords.some(k => jobDescription.includes(k))).map(([skill, _]) => skill))];
+
+            try {
+                const marketJobsRef = collection(db, "artifacts", appId, "public", "data", "market_research_jobs");
+                await addDoc(marketJobsRef, {
+                    company: companyName,
+                    title: jobTitle,
+                    hardSkills: foundHardSkills,
+                    softSkills: foundSoftSkills,
+                    createdAt: serverTimestamp()
+                });
+                document.getElementById('companyName').value = '';
+                document.getElementById('jobTitle').value = '';
+                document.getElementById('jobDescription').value = '';
+            } catch (error) {
+                console.error("Error adding market job:", error);
+            }
+        }
+
+        // --- RENDERING ---
+        function renderMarketView() {
+            renderMarketTable();
+            renderMarketSummary();
+        }
+
+        function renderMarketTable() {
+            const tbody = document.getElementById('resultsTableBody');
+            tbody.innerHTML = '';
+            if (state.marketJobs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-10 text-center text-slate-500">No jobs analyzed yet.</td></tr>`;
+                return;
+            }
+            state.marketJobs.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).forEach(job => {
+                const row = `
+                    <tr class="hover:bg-slate-50" data-id="${job.id}">
+                        <td class="px-6 py-4"><div class="text-sm font-medium text-slate-900">${job.company}</div><div class="text-xs text-slate-500">${job.title}</div></td>
+                        <td class="px-6 py-4">${job.hardSkills.map(s => `<span class="skill-tag hard-skill">${s}</span>`).join('')}</td>
+                        <td class="px-6 py-4">${job.softSkills.map(s => `<span class="skill-tag soft-skill">${s}</span>`).join('')}</td>
+                        <td class="px-6 py-4 text-right"><button class="delete-market-btn text-sm text-red-500 hover:text-red-700 font-semibold">Delete</button></td>
+                    </tr>`;
+                tbody.innerHTML += row;
+            });
+            
+            // Attach listeners after rendering
+            document.querySelectorAll('.delete-market-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const row = e.target.closest('tr');
+                    const jobId = row.dataset.id;
+                    if (confirm('Are you sure you want to delete this analyzed job?')) {
+                        await deleteDoc(doc(db, "artifacts", appId, "public", "data", "market_research_jobs", jobId));
+                    }
+                });
+            });
+        }
+
+        function renderMarketSummary() {
+            document.getElementById('totalJobs').textContent = state.marketJobs.length;
+            if (state.marketJobs.length === 0) {
+                 document.getElementById('topHardSkill').textContent = '-';
+                 document.getElementById('topSoftSkill').textContent = '-';
+                 return;
+            }
+            const hardSkillCounts = state.marketJobs.flatMap(j => j.hardSkills).reduce((acc, skill) => { acc[skill] = (acc[skill] || 0) + 1; return acc; }, {});
+            const softSkillCounts = state.marketJobs.flatMap(j => j.softSkills).reduce((acc, skill) => { acc[skill] = (acc[skill] || 0) + 1; return acc; }, {});
+            
+            const topHardSkill = Object.keys(hardSkillCounts).length ? Object.entries(hardSkillCounts).sort((a,b)=>b[1]-a[1])[0][0] : '-';
+            const topSoftSkill = Object.keys(softSkillCounts).length ? Object.entries(softSkillCounts).sort((a,b)=>b[1]-a[1])[0][0] : '-';
+            
+            document.getElementById('topHardSkill').textContent = topHardSkill;
+            document.getElementById('topSoftSkill').textContent = topSoftSkill;
+        }
+
+        function renderTrackerView() {
+            const board = document.getElementById('kanban-board');
+            board.innerHTML = '';
+            STATUS_ORDER.forEach(statusKey => {
+                const jobsInStatus = state.trackedJobs.filter(j => j.status === statusKey);
+                const column = document.createElement('div');
+                column.className = 'kanban-column flex-shrink-0 w-72 bg-slate-200 rounded-xl';
+                column.innerHTML = `
+                    <h3 class="font-bold text-slate-700 p-4 text-lg sticky top-0 bg-slate-200 rounded-t-xl">${STATUS_MAP[statusKey]} <span class="text-sm font-medium text-slate-500">${jobsInStatus.length}</span></h3>
+                    <div class="p-2 space-y-3 overflow-y-auto" style="max-height: 65vh;">
+                        ${jobsInStatus.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).map(job => createJobCardHTML(job)).join('') || `<div class="p-4 text-center text-sm text-slate-500">No applications here.</div>`}
+                    </div>`;
+                board.appendChild(column);
+            });
+            attachCardEventListeners();
+        }
+
+        function createJobCardHTML(job) {
+             const statusClass = `status-${job.status}`;
+             return `
+                <div class="kanban-card bg-white rounded-lg p-4 shadow" data-id="${job.id}">
+                    <div class="flex justify-between items-start">
+                        <p class="font-bold text-slate-800">${job.companyName}</p>
+                        <span class="status-pill ${statusClass}">${STATUS_MAP[job.status]}</span>
+                    </div>
+                    <p class="text-sm text-slate-600 mb-3">${job.jobTitle}</p>
+                    ${job.notes ? `<p class="text-xs bg-slate-50 p-2 rounded-md text-slate-500 whitespace-pre-wrap">${job.notes}</p>` : ''}
+                    <div class="mt-4 flex justify-between items-center text-xs">
+                         <div class="relative">
+                            <select class="status-changer bg-slate-100 hover:bg-slate-200 rounded-md p-1.5 text-xs font-semibold appearance-none">
+                                <option value="">Change Status...</option>
+                                ${Object.entries(STATUS_MAP).map(([key, value]) => `<option value="${key}" ${key === job.status ? 'selected' : ''}>${value}</option>`).join('')}
+                            </select>
+                         </div>
+                         <button class="delete-tracker-btn text-red-500 hover:text-red-700 font-semibold">Delete</button>
+                    </div>
+                </div>`;
+        }
+        
+        function attachCardEventListeners() {
+            document.querySelectorAll('.delete-tracker-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+                const card = e.target.closest('.kanban-card');
+                if (confirm('Are you sure you want to delete this application?')) {
+                     await deleteDoc(doc(db, "artifacts", appId, "public", "data", "tracked_applications", card.dataset.id));
+                }
+            }));
+            document.querySelectorAll('.status-changer').forEach(sel => sel.addEventListener('click', async (e) => {
+                e.stopPropagation(); // prevent card click
+            }));
+             document.querySelectorAll('.status-changer').forEach(sel => sel.addEventListener('change', async (e) => {
+                const card = e.target.closest('.kanban-card');
+                const newStatus = e.target.value;
+                if(newStatus) {
+                    await updateDoc(doc(db, "artifacts", appId, "public", "data", "tracked_applications", card.dataset.id), { status: newStatus });
+                }
+            }));
+        }
+        
+        // --- MODAL LOGIC ---
+        const modal = document.getElementById('applicationModal');
+        document.getElementById('addApplicationBtn').addEventListener('click', () => {
+             document.getElementById('modalTitle').textContent = 'Add New Application';
+             document.getElementById('modalJobId').value = '';
+             document.getElementById('modalCompanyName').value = '';
+             document.getElementById('modalJobTitle').value = '';
+             document.getElementById('modalJobLink').value = '';
+             document.getElementById('modalNotes').value = '';
+             modal.classList.remove('hidden');
+             setTimeout(() => modal.classList.remove('opacity-0'), 10);
+        });
+        document.getElementById('modalCancelBtn').addEventListener('click', () => {
+            modal.classList.add('opacity-0');
+            setTimeout(() => modal.classList.add('hidden'), 250);
+        });
+        document.getElementById('modalSaveBtn').addEventListener('click', async () => {
+            const companyName = document.getElementById('modalCompanyName').value.trim();
+            const jobTitle = document.getElementById('modalJobTitle').value.trim();
+            if (!companyName || !jobTitle) return alert('Company and Title are required.');
+            
+            const jobData = {
+                companyName,
+                jobTitle,
+                link: document.getElementById('modalJobLink').value.trim(),
+                notes: document.getElementById('modalNotes').value.trim(),
+                status: 'wishlist', // Always add to wishlist first
+                createdAt: serverTimestamp()
+            };
+            
+            try {
+                const trackedJobsRef = collection(db, "artifacts", appId, "public", "data", "tracked_applications");
+                await addDoc(trackedJobsRef, jobData);
+                document.getElementById('modalCancelBtn').click();
+            } catch (error) {
+                console.error("Error saving application:", error);
+            }
+        });
+
+        // Initial setup
+        switchView('market-research-view');
+
+    </script>
+</body>
+</html>
