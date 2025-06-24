@@ -22,6 +22,17 @@
         .status-interviewing { background-color: #fed7aa; color: #c2410c; } /* orange-200, orange-700 */
         .status-offer { background-color: #bbf7d0; color: #166534; } /* green-200, green-800 */
         .status-rejected { background-color: #fecaca; color: #991b1b; } /* red-200, red-900 */
+        .nav-btn.active {
+            background-color: white;
+            color: #0f172a; /* slate-900 */
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        }
+        .pagination-btn.active-page {
+            z-index: 10;
+            background-color: #0284c7;
+            color: white;
+            border-color: #0284c7;
+        }
     </style>
 </head>
 <body class="text-slate-800">
@@ -32,7 +43,7 @@
             <nav class="container mx-auto px-4 md:px-8 py-4 flex justify-between items-center">
                 <h1 class="text-xl md:text-2xl font-bold text-slate-900">Job Search Hub</h1>
                 <div class="flex space-x-2 rounded-lg bg-slate-200 p-1">
-                    <button id="navMarket" class="nav-btn active-nav-btn px-4 py-1.5 text-sm font-semibold rounded-md transition-colors">Market Research</button>
+                    <button id="navMarket" class="nav-btn px-4 py-1.5 text-sm font-semibold rounded-md transition-colors">Market Research</button>
                     <button id="navTracker" class="nav-btn px-4 py-1.5 text-sm font-semibold rounded-md transition-colors">Application Tracker</button>
                 </div>
             </nav>
@@ -65,11 +76,21 @@
                             <h2 class="text-2xl font-bold mb-4">Market Summary</h2>
                             <div id="summarySection" class="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
                                 <div class="bg-slate-100 p-4 rounded-lg"><p class="text-sm text-slate-500">Jobs Analyzed</p><p id="totalJobs" class="text-3xl font-bold text-sky-600">0</p></div>
-                                <div class="bg-slate-100 p-4 rounded-lg"><p class="text-sm text-slate-500">Top Hard Skill</p><p id="topHardSkill" class="text-2xl md:text-3xl font-bold text-sky-600">-</p></div>
-                                <div class="bg-slate-100 p-4 rounded-lg"><p class="text-sm text-slate-500">Top Soft Skill</p><p id="topSoftSkill" class="text-2xl md:text-3xl font-bold text-orange-600">-</p></div>
+                                <div class="bg-slate-100 p-4 rounded-lg"><p class="text-sm text-slate-500">Top Hard Skill</p><p id="topHardSkill" class="text-xl sm:text-2xl lg:text-3xl font-bold text-sky-600 break-words">-</p></div>
+                                <div class="bg-slate-100 p-4 rounded-lg"><p class="text-sm text-slate-500">Top Soft Skill</p><p id="topSoftSkill" class="text-xl sm:text-2xl lg:text-3xl font-bold text-orange-600 break-words">-</p></div>
                             </div>
                         </div>
-                        <div class="bg-white rounded-2xl shadow-lg"><h2 class="text-2xl font-bold p-6">Analyzed Jobs</h2><div class="overflow-x-auto"><table class="min-w-full"><thead class="bg-slate-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Company</th><th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Hard Skills</th><th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Soft Skills</th><th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Actions</th></tr></thead><tbody id="resultsTableBody" class="divide-y divide-slate-200"></tbody></table></div></div>
+                        <div class="bg-white rounded-2xl shadow-lg">
+                            <div class="flex justify-between items-center p-6">
+                                <h2 class="text-2xl font-bold">Analyzed Jobs</h2>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full"><thead class="bg-slate-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Company</th><th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Hard Skills</th><th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Soft Skills</th><th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Actions</th></tr></thead><tbody id="resultsTableBody" class="divide-y divide-slate-200"></tbody></table>
+                            </div>
+                            <!-- PAGINATION START -->
+                            <div id="pagination-controls" class="p-4 flex items-center justify-between border-t border-slate-200"></div>
+                            <!-- PAGINATION END -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -110,7 +131,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- CONFIG & STATE ---
         const firebaseConfig = {
@@ -136,6 +157,8 @@
             marketJobs: [],
             trackedJobs: [],
             listenersAttached: false,
+            marketJobsCurrentPage: 1, 
+            marketJobsItemsPerPage: 5, 
         };
 
         const SKILL_KEYWORDS = {
@@ -162,10 +185,8 @@
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // Set up a persistent auth state listener
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
-                        // User is signed in.
                         currentUserId = user.uid;
                         if (!state.listenersAttached) {
                             loadingText.textContent = "Fetching your data...";
@@ -173,7 +194,6 @@
                             state.listenersAttached = true;
                         }
                     } else {
-                        // User is signed out. Attempt to sign in.
                         loadingText.textContent = "Authenticating...";
                         signInWithEmailAndPassword(auth, fixedUserCredentials.email, fixedUserCredentials.password)
                             .catch(error => {
@@ -201,22 +221,22 @@
             document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
             document.getElementById(viewId).classList.remove('hidden');
             
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active-nav-btn'));
-            document.getElementById(viewId === 'market-research-view' ? 'navMarket' : 'navTracker').classList.add('active-nav-btn');
-            document.querySelectorAll('.nav-btn').forEach(b => {
-                b.style.backgroundColor = b.classList.contains('active-nav-btn') ? 'white' : '';
-                b.style.color = b.classList.contains('active-nav-btn') ? '#0f172a' : '';
-            });
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(viewId === 'market-research-view' ? 'navMarket' : 'navTracker').classList.add('active');
         }
 
         // --- FIRESTORE & DATA ---
         function attachFirestoreListeners() {
             if (!currentUserId) return;
-            const appId = "job-search-hub-data"; // A fixed collection name
+            const appId = "job-search-hub-data"; 
 
             const marketJobsRef = collection(db, appId, currentUserId, "market_research_jobs");
             unsubMarket = onSnapshot(marketJobsRef, (snapshot) => {
                 state.marketJobs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const totalPages = Math.ceil(state.marketJobs.length / state.marketJobsItemsPerPage);
+                if (state.marketJobsCurrentPage > totalPages) {
+                    state.marketJobsCurrentPage = totalPages || 1;
+                }
                 renderMarketView();
                 loadingOverlay.style.display = 'none'; 
             }, (error) => {
@@ -247,6 +267,7 @@
                 await addDoc(collection(db, "job-search-hub-data", currentUserId, "market_research_jobs"), {
                     company: companyName, title: jobTitle, hardSkills: foundHardSkills, softSkills: foundSoftSkills, createdAt: serverTimestamp()
                 });
+                state.marketJobsCurrentPage = 1; 
                 document.getElementById('companyName').value = '';
                 document.getElementById('jobTitle').value = '';
                 document.getElementById('jobDescription').value = '';
@@ -259,16 +280,28 @@
         function renderMarketView() {
             renderMarketTable();
             renderMarketSummary();
+            renderPagination();
         }
 
         function renderMarketTable() {
             const tbody = document.getElementById('resultsTableBody');
             tbody.innerHTML = '';
-            if (state.marketJobs.length === 0) {
+            const sortedJobs = state.marketJobs.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+            const page = state.marketJobsCurrentPage;
+            const limit = state.marketJobsItemsPerPage;
+            const paginatedJobs = sortedJobs.slice((page - 1) * limit, page * limit);
+
+            if (paginatedJobs.length === 0 && state.marketJobs.length > 0) {
+                state.marketJobsCurrentPage = Math.ceil(state.marketJobs.length / limit);
+                renderMarketTable(); 
+                return;
+            }
+            if (paginatedJobs.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-10 text-center text-slate-500">No jobs analyzed yet.</td></tr>`;
                 return;
             }
-            state.marketJobs.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).forEach(job => {
+
+            paginatedJobs.forEach(job => {
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-slate-50';
                 row.dataset.id = job.id;
@@ -286,6 +319,53 @@
                 });
             });
         }
+
+        // --- NEW PAGINATION RENDER ---
+        function renderPagination() {
+            const controlsContainer = document.getElementById('pagination-controls');
+            const totalItems = state.marketJobs.length;
+            const itemsPerPage = state.marketJobsItemsPerPage;
+            const currentPage = state.marketJobsCurrentPage;
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+            if (totalPages <= 1) {
+                controlsContainer.innerHTML = '';
+                return;
+            }
+
+            let pageButtonsHTML = '';
+            for (let i = 1; i <= totalPages; i++) {
+                const isActive = i === currentPage ? 'active-page' : 'bg-white hover:bg-gray-50';
+                pageButtonsHTML += `<button class="pagination-btn relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 ${isActive}" data-page="${i}">${i}</button>`;
+            }
+
+            const prevButton = `<button id="prev-page" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50" ${currentPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
+            const nextButton = `<button id="next-page" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+            
+            controlsContainer.innerHTML = `<div class="flex-1 flex justify-between items-center"><p class="text-sm text-gray-700">Showing <span class="font-medium">${Math.min((currentPage-1) * itemsPerPage + 1, totalItems)}</span> to <span class="font-medium">${Math.min(currentPage * itemsPerPage, totalItems)}</span> of <span class="font-medium">${totalItems}</span> results</p><nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">${prevButton}${pageButtonsHTML}${nextButton}</nav></div>`;
+            
+            document.querySelectorAll('.pagination-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    state.marketJobsCurrentPage = parseInt(e.target.dataset.page);
+                    renderMarketView();
+                });
+            });
+            
+            document.getElementById('prev-page')?.addEventListener('click', () => {
+                if (state.marketJobsCurrentPage > 1) {
+                    state.marketJobsCurrentPage--;
+                    renderMarketView();
+                }
+            });
+
+            document.getElementById('next-page')?.addEventListener('click', () => {
+                 if (state.marketJobsCurrentPage < totalPages) {
+                    state.marketJobsCurrentPage++;
+                    renderMarketView();
+                }
+            });
+        }
+
 
         function renderMarketSummary() {
             document.getElementById('totalJobs').textContent = state.marketJobs.length;
@@ -327,7 +407,7 @@
                 btn.addEventListener('click', async (e) => {
                     const card = e.target.closest('.kanban-card');
                     if (confirm('Are you sure you want to delete this application?')) {
-                         await deleteDoc(doc(db, "job-hub-data", currentUserId, "tracked_applications", card.dataset.id));
+                         await deleteDoc(doc(db, "job-search-hub-data", currentUserId, "tracked_applications", card.dataset.id));
                     }
                 });
             });
@@ -336,7 +416,7 @@
                     const card = e.target.closest('.kanban-card');
                     const newStatus = e.target.value;
                     if(newStatus) {
-                        await updateDoc(doc(db, "job-hub-data", currentUserId, "tracked_applications", card.dataset.id), { status: newStatus });
+                        await updateDoc(doc(db, "job-search-hub-data", currentUserId, "tracked_applications", card.dataset.id), { status: newStatus });
                     }
                 });
             });
@@ -365,7 +445,7 @@
             };
             
             try {
-                await addDoc(collection(db, "job-hub-data", currentUserId, "tracked_applications"), jobData);
+                await addDoc(collection(db, "job-search-hub-data", currentUserId, "tracked_applications"), jobData);
                 document.getElementById('modalCancelBtn').click();
             } catch (error) {
                 console.error("Error saving application:", error);
