@@ -161,9 +161,10 @@
             marketJobsItemsPerPage: 5, 
         };
 
+        // BUG FIX: Made 'R' detection more specific
         const SKILL_KEYWORDS = {
-            hard_skills: {'SQL':['sql'],'Python':['python','pandas','numpy','scikit-learn'],'R':['r'],'Tableau':['tableau'],'Power BI':['power bi'],'Excel':['excel','spreadsheets'],'Statistics':['statistics','statistical'],'A/B Testing':['a/b test'],'Machine Learning':['machine learning','ml'],'AWS':['aws','redshift'],'GCP':['gcp','bigquery'],'Azure':['azure']},
-            soft_skills: {'Communication':['communication','storytelling'],'Stakeholder Management':['stakeholder'],'Problem Solving':['problem-solving'],'Collaboration':['collaboration','teamwork'],'Business Acumen':['business acumen']}
+            hard_skills: {'SQL':['sql'],'Python':['python','pandas','numpy','scikit-learn'],'R':[' r,', ' r ', '(r)', 'r language'],'Tableau':['tableau'],'Power BI':['power bi', 'powerbi'],'Excel':['excel', 'vlookup', 'pivot tables'],'Statistics':['statistics','statistical'],'A/B Testing':['a/b test', 'a/b testing', 'experimentation'],'Machine Learning':['machine learning','ml'],'AWS':['aws','redshift'],'GCP':['gcp','bigquery'],'Azure':['azure']},
+            soft_skills: {'Communication':['communication','storytelling', 'presenting'],'Stakeholder Management':['stakeholder'],'Problem Solving':['problem solving', 'problem-solving'],'Collaboration':['collaboration','collaborate','teamwork'],'Business Acumen':['business acumen']}
         };
 
         const STATUS_MAP = {
@@ -320,7 +321,6 @@
             });
         }
 
-        // --- NEW PAGINATION RENDER ---
         function renderPagination() {
             const controlsContainer = document.getElementById('pagination-controls');
             const totalItems = state.marketJobs.length;
@@ -407,7 +407,7 @@
                 btn.addEventListener('click', async (e) => {
                     const card = e.target.closest('.kanban-card');
                     if (confirm('Are you sure you want to delete this application?')) {
-                         await deleteDoc(doc(db, "job-search-hub-data", currentUserId, "tracked_applications", card.dataset.id));
+                         await deleteDoc(doc(db, "job-hub-data", currentUserId, "tracked_applications", card.dataset.id));
                     }
                 });
             });
@@ -416,7 +416,7 @@
                     const card = e.target.closest('.kanban-card');
                     const newStatus = e.target.value;
                     if(newStatus) {
-                        await updateDoc(doc(db, "job-search-hub-data", currentUserId, "tracked_applications", card.dataset.id), { status: newStatus });
+                        await updateDoc(doc(db, "job-hub-data", currentUserId, "tracked_applications", card.dataset.id), { status: newStatus });
                     }
                 });
             });
